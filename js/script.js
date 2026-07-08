@@ -1,8 +1,24 @@
 /* =========================================================
+   🎨 THEME SYSTEM
+   The active theme was already picked (randomly, on every page
+   load/refresh) by the inline script in index.html <head>, which
+   set data-theme on <html> before the page painted. We just read
+   it here so our JS-generated decorations (balloons, sparkles,
+   confetti) use matching colors.
+   ========================================================= */
+const ACTIVE_THEME = document.documentElement.getAttribute('data-theme') || 'arabic';
+const THEME_COLORS = {
+  arabic:   ['#d9b45c', '#f3dfa0', '#ff7fa6', '#b79cff', '#2f7d63'],
+  colorful: ['#ffb648', '#ff5da2', '#7c5cff', '#00c2a8', '#ffd873', '#ff8a5c'],
+  pink:     ['#ff6fa3', '#ffc9de', '#d9829f', '#b8577c', '#ffe3ec']
+};
+const themePalette = THEME_COLORS[ACTIVE_THEME] || THEME_COLORS.arabic;
+
+/* =========================================================
    🔧 EDIT ME — everything you'll want to personalize lives here
    ========================================================= */
 const CONFIG = {
-  sisterName: "Sister", // put her real name here
+  sisterName: "Amelia", // put her real name here
 
   // Bilingual wishes that float across the screen (Arabic + English)
   wishes: [
@@ -59,6 +75,10 @@ const CONFIG = {
   videoSrc: "assets/video/birthday-video.mp4",
   videoPoster: "assets/images/video-poster.jpg",
 
+  // 🎵 BACKGROUND MUSIC — file location: assets/audio/background-music.mp3
+  // Any MP3 works; a gentle, loop-friendly track (20-60s) works best since it repeats.
+  musicSrc: "assets/audio/background-music.mp3",
+
   // 🎂 Number of candles on the cake (also = number of clicks to blow them all out)
   candleCount: 5
 };
@@ -75,6 +95,7 @@ document.getElementById('sisterNameEl').textContent = CONFIG.sisterName;
     const el = document.createElement('div');
     el.className = 'drift';
     el.textContent = glyphs[i % glyphs.length];
+    el.style.color = themePalette[i % themePalette.length];
     el.style.fontSize = (12 + Math.random()*14) + 'px';
     el.style.left = (Math.random()*100)+'%';
     el.style.animationDuration = (10 + Math.random()*10)+'s';
@@ -88,7 +109,7 @@ document.getElementById('sisterNameEl').textContent = CONFIG.sisterName;
    ========================================================= */
 (function balloons(){
   const layer = document.getElementById('balloonLayer');
-  const colors = ['#ff7fa6', '#d9b45c', '#b79cff', '#f3dfa0', '#2f7d63'];
+  const colors = themePalette;
   for(let i=0;i<10;i++){
     const b = document.createElement('div');
     b.className = 'balloon';
@@ -182,7 +203,7 @@ updateSpiralOnScroll();
    ========================================================= */
 const posterRing = document.getElementById('posterRing');
 const N_POSTER = CONFIG.posterImages.length;
-const POSTER_RADIUS = window.innerWidth < 640 ? 210 : 380;
+const POSTER_RADIUS = window.innerWidth < 640 ? 240 : 430;
 const posterCards = [];
 
 CONFIG.posterImages.forEach((p, i) => {
@@ -402,3 +423,51 @@ window.addEventListener('resize', () => {
   layoutPosters();
   updateSpiralOnScroll();
 });
+
+/* =========================================================
+   BACKGROUND MUSIC
+   Browsers block autoplay-with-sound until the visitor interacts
+   with the page, so we: (1) wire the source from CONFIG, (2) try
+   to start playback on the very first tap/click/scroll anywhere,
+   and (3) always let the visitor toggle it manually via the
+   floating button, which also reflects the current play state.
+   ========================================================= */
+(function backgroundMusic(){
+  const music = document.getElementById('bgMusic');
+  const toggleBtn = document.getElementById('musicToggle');
+  const source = music.querySelector('source');
+  if(CONFIG.musicSrc){ source.src = CONFIG.musicSrc; music.load(); }
+
+  music.volume = 0.45;
+
+  function setPlayingUI(isPlaying){
+    toggleBtn.classList.toggle('playing', isPlaying);
+    toggleBtn.title = isPlaying ? 'Pause background music' : 'Play background music';
+  }
+
+  function tryPlay(){
+    const p = music.play();
+    if(p && p.catch){ p.then(() => setPlayingUI(true)).catch(() => setPlayingUI(false)); }
+  }
+
+  // Attempt autoplay once, on the very first user interaction with the page.
+  let attempted = false;
+  function firstInteraction(){
+    if(attempted) return;
+    attempted = true;
+    tryPlay();
+    window.removeEventListener('pointerdown', firstInteraction);
+    window.removeEventListener('scroll', firstInteraction);
+    window.removeEventListener('keydown', firstInteraction);
+  }
+  window.addEventListener('pointerdown', firstInteraction, { passive:true });
+  window.addEventListener('scroll', firstInteraction, { passive:true });
+  window.addEventListener('keydown', firstInteraction);
+
+  toggleBtn.addEventListener('click', () => {
+    if(music.paused){ tryPlay(); } else { music.pause(); setPlayingUI(false); }
+  });
+  music.addEventListener('play', () => setPlayingUI(true));
+  music.addEventListener('pause', () => setPlayingUI(false));
+})();
+
